@@ -96,6 +96,61 @@
   font-size: 11px;
 }
 
+/* 🔥 NEW: Password Strength Meter Styles */
+.password-strength-container {
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.strength-bar-background {
+  width: 100%;
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.strength-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+.strength-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.strength-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.strength-feedback {
+  list-style: none;
+  padding: 0;
+  margin: 5px 0 0 0;
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.strength-feedback li {
+  padding: 2px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.strength-feedback li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: #ff9800;
+  font-weight: bold;
+}
+
 .submit-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;

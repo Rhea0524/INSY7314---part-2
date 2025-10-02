@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { validators, sanitizeInput } from '../utils/validation';
 import { registerCustomer } from '../services/api';
@@ -17,28 +17,32 @@ const Register = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({
+    score: 0,
+    label: '',
+    feedback: []
+  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     const sanitizedValue = sanitizeInput(value);
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: sanitizedValue
     }));
 
-    // Clear error for this field when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+
+    if (name === 'password') {
+      updatePasswordStrength(sanitizedValue);
     }
   };
 
   const validateField = (name, value) => {
     let error = '';
-    
     switch (name) {
       case 'fullName':
         error = validators.fullName(value);
@@ -58,42 +62,30 @@ const Register = () => {
       default:
         break;
     }
-    
     return error;
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
     Object.keys(formData).forEach(field => {
       const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
-      }
+      if (error) newErrors[field] = error;
     });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
       const { confirmPassword, ...registrationData } = formData;
-      const response = await registerCustomer(registrationData);
-      
+      await registerCustomer(registrationData);
       alert('Registration successful! Please login with your credentials.');
-      
-      // Navigate to login page
       navigate('/login');
-      
     } catch (error) {
       console.error('Registration error:', error);
       const errorMessage = error.error || error.message || 'Registration failed. Please try again.';
@@ -103,6 +95,40 @@ const Register = () => {
     }
   };
 
+  /** 🔥 Password Strength Meter Logic */
+  const updatePasswordStrength = (password) => {
+    let score = 0;
+    const feedback = [];
+
+    if (password.length >= 8) score++;
+    else feedback.push('Password should be at least 8 characters.');
+
+    if (/[A-Z]/.test(password)) score++;
+    else feedback.push('Include at least one uppercase letter.');
+
+    if (/[a-z]/.test(password)) score++;
+    else feedback.push('Include at least one lowercase letter.');
+
+    if (/\d/.test(password)) score++;
+    else feedback.push('Include at least one number.');
+
+    if (/[@$!%*?&#]/.test(password)) score++;
+    else feedback.push('Include at least one special character.');
+
+    let label = '';
+    if (score <= 2) label = 'Weak';
+    else if (score === 3) label = 'Medium';
+    else label = 'Strong';
+
+    setPasswordStrength({ score, label, feedback });
+  };
+
+  const getStrengthBarColor = () => {
+    if (passwordStrength.score <= 2) return '#e74c3c';
+    if (passwordStrength.score === 3) return '#f1c40f';
+    return '#2ecc71';
+  };
+
   return (
     <div className="register-container">
       <div className="register-card">
@@ -110,6 +136,7 @@ const Register = () => {
         <p className="subtitle">Create your secure account</p>
 
         <form onSubmit={handleSubmit} className="register-form">
+          {/* Full Name */}
           <div className="form-group">
             <label htmlFor="fullName">Full Name *</label>
             <input
@@ -125,6 +152,7 @@ const Register = () => {
             {errors.fullName && <span className="error-message">{errors.fullName}</span>}
           </div>
 
+          {/* ID Number */}
           <div className="form-group">
             <label htmlFor="idNumber">ID Number *</label>
             <input
@@ -141,6 +169,7 @@ const Register = () => {
             {errors.idNumber && <span className="error-message">{errors.idNumber}</span>}
           </div>
 
+          {/* Account Number */}
           <div className="form-group">
             <label htmlFor="accountNumber">Account Number *</label>
             <input
@@ -157,6 +186,7 @@ const Register = () => {
             {errors.accountNumber && <span className="error-message">{errors.accountNumber}</span>}
           </div>
 
+          {/* Password */}
           <div className="form-group">
             <label htmlFor="password">Password *</label>
             <div className="password-input-wrapper">
@@ -183,8 +213,32 @@ const Register = () => {
             <small className="password-hint">
               Must contain: 8+ characters, uppercase, lowercase, number, and special character
             </small>
+
+            {/* 🔥 Password Strength Meter */}
+            <div className="password-strength-container">
+              <div className="strength-bar-background">
+                <div
+                  className="strength-bar-fill"
+                  style={{
+                    width: `${(passwordStrength.score / 5) * 100}%`,
+                    backgroundColor: getStrengthBarColor()
+                  }}
+                ></div>
+              </div>
+              <div className="strength-info">
+                <span className="strength-label" style={{ color: getStrengthBarColor() }}>
+                  {passwordStrength.label}
+                </span>
+                <ul className="strength-feedback">
+                  {passwordStrength.feedback.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
 
+          {/* Confirm Password */}
           <div className="form-group">
             <label htmlFor="confirmPassword">Confirm Password *</label>
             <input
@@ -200,17 +254,15 @@ const Register = () => {
             {errors.confirmPassword && <span className="error-message">{errors.confirmPassword}</span>}
           </div>
 
-          <button 
-            type="submit" 
-            className="submit-btn"
-            disabled={loading}
-          >
+          <button type="submit" className="submit-btn" disabled={loading}>
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
 
         <div className="switch-form">
-          <p>Already have an account? <Link to="/login" className="link-btn">Login here</Link></p>
+          <p>
+            Already have an account? <Link to="/login" className="link-btn">Login here</Link>
+          </p>
         </div>
       </div>
     </div>

@@ -15,6 +15,31 @@ const app = express();
 // JWT Secret (add this to your .env file)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
 
+// 🔥 NEW: Password Pepper (additional security layer)
+const PEPPER = process.env.PASSWORD_PEPPER || 'default-pepper-change-in-production-5k9j3h7f2d1a';
+
+// 🔥 NEW: Adaptive bcrypt cost factor based on server capability
+const getAdaptiveCostFactor = () => {
+  const targetTime = 250; // Target 250ms for password hashing
+  let rounds = 10;
+  
+  // Test hashing speed (only do this once at startup)
+  const testPassword = 'test-password-for-benchmarking';
+  const start = Date.now();
+  bcrypt.hashSync(testPassword, 10);
+  const duration = Date.now() - start;
+  
+  // Adjust rounds based on server speed
+  if (duration < 100) rounds = 12; // Fast server
+  else if (duration < 200) rounds = 11; // Medium server
+  else rounds = 10; // Slower server
+  
+  console.log(`⚙️ Adaptive bcrypt rounds set to: ${rounds} (${duration}ms test)`);
+  return rounds;
+};
+
+const BCRYPT_ROUNDS = getAdaptiveCostFactor();
+
 // Security middleware
 app.use(helmet());
 
@@ -129,7 +154,7 @@ const validators = {
   ]
 };
 
-// Customer Registration
+// 🔥 UPDATED: Customer Registration with Pepper + Adaptive Rounds
 app.post('/api/register', validators.register, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -155,8 +180,11 @@ app.post('/api/register', validators.register, async (req, res) => {
       return res.status(400).json({ error: 'ID number already registered' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // 🔥 NEW: Add pepper to password before hashing
+    const passwordWithPepper = password + PEPPER;
+    
+    // 🔥 NEW: Use adaptive cost factor
+    const hashedPassword = await bcrypt.hash(passwordWithPepper, BCRYPT_ROUNDS);
 
     await db.collection('customers').add({
       fullName,
@@ -166,7 +194,7 @@ app.post('/api/register', validators.register, async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    console.log(`✅ New customer registered: ${accountNumber}`);
+    console.log(`✅ New customer registered: ${accountNumber} (bcrypt rounds: ${BCRYPT_ROUNDS})`);
     res.status(201).json({ message: 'Registration successful' });
   } catch (error) {
     console.error('Registration error:', error);
@@ -174,7 +202,7 @@ app.post('/api/register', validators.register, async (req, res) => {
   }
 });
 
-// Customer Login - UPDATED to use Firestore + JWT
+// 🔥 UPDATED: Customer Login with Pepper
 app.post('/api/login', validators.login, async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -197,8 +225,11 @@ app.post('/api/login', validators.login, async (req, res) => {
     const customerDoc = customerSnapshot.docs[0];
     const customerData = customerDoc.data();
 
+    // 🔥 NEW: Add pepper to password before comparison
+    const passwordWithPepper = password + PEPPER;
+    
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, customerData.password);
+    const isPasswordValid = await bcrypt.compare(passwordWithPepper, customerData.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid account number or password' });
@@ -465,7 +496,7 @@ app.listen(PORT, () => {
   console.log(`🔒 Secure server running on port ${PORT}`);
   console.log(`✅ Customer Auth: Firestore + JWT`);
   console.log(`✅ Employee Auth: Firebase Auth`);
-  console.log(`✅ Password hashing: Enabled`);
+  console.log(`✅ Password hashing: Enabled (${BCRYPT_ROUNDS} rounds + pepper)`);
   console.log(`✅ Input validation: Enabled`);
   console.log(`✅ Rate limiting: Enabled`);
   console.log(`✅ Security headers: Enabled`);
