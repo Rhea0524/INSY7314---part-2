@@ -95,6 +95,18 @@
   }
 }
 
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-5px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(5px);
+  }
+}
+
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -112,52 +124,53 @@
 
 /* Body Background Enhancement */
 body {
-  background: linear-gradient(135deg, var(--neutral-50) 0%, var(--neutral-100) 100%);
+  background: linear-gradient(135deg, #f0f4f8 0%, #e8eef4 100%);
   position: relative;
   min-height: 100vh;
 }
 
 body::before {
   content: '';
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 20% 30%, rgba(37, 99, 235, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(14, 165, 233, 0.03) 0%, transparent 50%);
-  pointer-events: none;
+  height: 50%;
+  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-blue) 100%);
+  opacity: 0.03;
   z-index: 0;
 }
 
-
-
-/* Dashboard Container */
 .customer-dashboard {
-  max-width: 95%;
-  margin: 0 auto;
-  padding: 40px 20px 60px;
-  min-height: calc(100vh - 200px);
+  width: calc(100% - 10cm); /* full width minus left+right gaps */
+  max-width: none;
+  margin: 3cm auto;        /* 3cm top/bottom + left/right */
+  padding: 0;              /* internal padding if needed */
+  min-height: calc(100vh - 10cm); /* full height minus gaps */
   animation: fadeIn 0.6s ease-out;
   position: relative;
   z-index: 1;
+  box-sizing: border-box;  /* makes padding/margins behave predictably */
 }
+
+
 
 /* Dashboard Header - Enhanced */
 .dashboard-header-info {
   background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
   color: white;
-  padding: 48px;
+  padding: 40px 48px;
   border-radius: 20px;
-  margin-bottom: 40px;
-  box-shadow: 
-    var(--shadow-xl),
-    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-xl);
   border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
   animation: scaleIn 0.6s ease-out;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 32px;
 }
 
 .dashboard-header-info::before {
@@ -186,13 +199,41 @@ body::before {
 }
 
 .dashboard-header-info h2 {
-  margin: 0 0 16px 0;
-  font-size: 36px;
+  margin: 0 0 12px 0;
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: -1.5px;
+  letter-spacing: -1px;
   position: relative;
   z-index: 1;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.header-profile {
+  position: relative;
+  z-index: 1;
+  text-align: right;
+}
+
+.profile-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  object-fit: cover;
+  margin-bottom: 8px;
+}
+
+.profile-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  opacity: 0.95;
 }
 
 .account-info {
@@ -215,34 +256,31 @@ body::before {
 
 /* Dashboard Tabs - Enhanced */
 .dashboard-tabs {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 36px;
-  padding: 8px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--neutral-200);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
   animation: slideDown 0.6s ease-out 0.2s both;
 }
 
 .tab-btn {
-  background: none;
-  border: none;
-  padding: 14px 28px;
-  font-size: 15px;
+  background: white;
+  border: 2px solid var(--neutral-200);
+  padding: 20px 32px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   color: var(--neutral-600);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   letter-spacing: -0.2px;
   position: relative;
-  border-radius: 10px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
   justify-content: center;
+  gap: 10px;
+  font-family: inherit;
+  box-shadow: var(--shadow-sm);
 }
 
 .tab-btn::before {
@@ -258,21 +296,27 @@ body::before {
 
 .tab-btn:hover {
   color: var(--primary-blue);
-  background: var(--neutral-50);
-  transform: translateY(-1px);
+  background: white;
+  transform: translateY(-2px);
+  border-color: var(--primary-blue);
+  box-shadow: var(--shadow-md);
 }
 
 .tab-btn.active {
   color: white;
   background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
-  box-shadow: 
-    var(--shadow-md),
-    0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
+  border-color: transparent;
 }
 
 .tab-btn.active::before {
   opacity: 1;
+}
+
+.tab-btn:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
 }
 
 /* Main Content */
@@ -285,7 +329,7 @@ body::before {
 .transactions-section {
   background: white;
   border-radius: 20px;
-  padding: 48px;
+  padding: 40px;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--neutral-200);
   animation: slideUp 0.6s ease-out;
@@ -298,17 +342,17 @@ body::before {
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 5px;
   background: linear-gradient(90deg, var(--primary-blue), var(--accent-blue));
   border-radius: 20px 20px 0 0;
 }
 
 .transactions-section h3 {
-  margin: 0 0 32px 0;
+  margin: 0 0 28px 0;
   color: var(--neutral-900);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
-  letter-spacing: -1px;
+  letter-spacing: -0.8px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -316,17 +360,17 @@ body::before {
 
 .transactions-section h3::before {
   content: '💳';
-  font-size: 32px;
+  font-size: 28px;
 }
 
 /* Error Message */
 .error-message {
   background: rgba(239, 68, 68, 0.1);
   color: var(--error-red);
-  padding: 16px 20px;
-  border-radius: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
   margin-bottom: 24px;
-  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   font-weight: 500;
   font-size: 14px;
   display: flex;
@@ -338,7 +382,7 @@ body::before {
 
 .error-message::before {
   content: '⚠';
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
@@ -394,15 +438,16 @@ body::before {
   color: white;
   border: none;
   padding: 16px 40px;
-  border-radius: 12px;
+  border-radius: 10px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   letter-spacing: -0.3px;
   position: relative;
   overflow: hidden;
+  font-family: inherit;
 }
 
 .make-payment-btn::before {
@@ -419,23 +464,24 @@ body::before {
 }
 
 .make-payment-btn:hover::before {
-  width: 400px;
-  height: 400px;
+  width: 300px;
+  height: 300px;
 }
 
 .make-payment-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 48px -12px rgba(37, 99, 235, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -10px rgba(37, 99, 235, 0.4);
   background: linear-gradient(135deg, var(--primary-blue-dark) 0%, var(--primary-blue) 100%);
 }
 
 .make-payment-btn:active {
   transform: translateY(-1px);
+  transition: all 0.1s;
 }
 
 .make-payment-btn:focus-visible {
-  outline: 3px solid var(--primary-blue);
-  outline-offset: 3px;
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
 }
 
 /* Transactions List */
@@ -448,9 +494,9 @@ body::before {
 .transaction-card {
   border: 2px solid var(--neutral-200);
   border-radius: 16px;
-  padding: 28px;
+  padding: 24px 28px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  background: linear-gradient(135deg, white 0%, var(--neutral-50) 100%);
+  background: white;
   animation: fadeIn 0.5s ease-out;
   position: relative;
   overflow: hidden;
@@ -478,16 +524,20 @@ body::before {
     0 12px 32px rgba(37, 99, 235, 0.15),
     0 0 0 1px var(--primary-blue);
   transform: translateY(-4px);
-  background: white;
+}
+
+.transaction-card:focus-within {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .transaction-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid var(--neutral-200);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--neutral-100);
 }
 
 .transaction-id {
@@ -651,54 +701,64 @@ body::before {
 /* Responsive Design */
 @media (max-width: 768px) {
   .customer-dashboard {
-    padding: 24px 16px 48px;
+    padding: 24px 20px 48px;
   }
 
   .dashboard-header-info {
-    padding: 32px 28px;
-    border-radius: 16px;
-    margin-bottom: 28px;
+    grid-template-columns: 1fr;
+    padding: 32px 24px;
+    gap: 20px;
+  }
+  
+  .header-profile {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .profile-image {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 0;
   }
   
   .dashboard-header-info h2 {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .account-info {
-    font-size: 15px;
+    font-size: 14px;
   }
   
   .dashboard-tabs {
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   
   .tab-btn {
-    width: 100%;
     justify-content: flex-start;
-    padding: 14px 20px;
+    padding: 16px 24px;
   }
 
   .transactions-section {
-    padding: 28px 24px;
-    border-radius: 16px;
+    padding: 28px 20px;
   }
 
   .transactions-section h3 {
-    font-size: 24px;
-    margin-bottom: 24px;
+    font-size: 22px;
+    margin-bottom: 20px;
   }
 
   .transaction-card {
-    padding: 24px 20px;
+    padding: 20px;
   }
 
   .transaction-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
-    padding-bottom: 16px;
+    gap: 12px;
+    padding-bottom: 14px;
   }
 
   .transaction-status {
@@ -708,7 +768,7 @@ body::before {
   .detail-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
     padding: 10px 0;
   }
 
@@ -717,7 +777,7 @@ body::before {
   }
 
   .detail-value.amount-value {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .no-transactions {
@@ -736,17 +796,6 @@ body::before {
     padding: 14px 32px;
     font-size: 15px;
   }
-}
-
-/* Accessibility */
-.tab-btn:focus-visible {
-  outline: 3px solid var(--primary-blue);
-  outline-offset: 3px;
-}
-
-.transaction-card:focus-within {
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 /* Print Styles */
