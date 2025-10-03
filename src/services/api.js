@@ -64,7 +64,7 @@ const sanitizeInput = (data) => {
     // PROTECTION: Remove multiple XSS attack vectors
     return data
       // Remove script tags and content (ReDoS-safe pattern)
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<script\b[^<]{0,500}?<\/script>/gi, '')
       // Remove event handlers (onclick, onerror, onload, etc.)
       .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
       .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
