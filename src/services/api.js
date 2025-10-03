@@ -58,11 +58,12 @@ api.interceptors.response.use(
 );
 
 // SECURITY: Enhanced input sanitization helper - XSS Protection
+// Multi-pass approach with comprehensive attack vector coverage
 const sanitizeInput = (data) => {
   if (typeof data === 'string') {
     // PROTECTION: Remove multiple XSS attack vectors
     return data
-      // Remove script tags and content
+      // Remove script tags and content (ReDoS-safe pattern)
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
       // Remove event handlers (onclick, onerror, onload, etc.)
       .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
@@ -128,7 +129,7 @@ export const submitPayment = async (paymentData) => {
       amount: parseFloat(paymentData.amount),
       currency: sanitizeInput(paymentData.currency),
       provider: 'SWIFT',
-      payeeAccount: sanitizeInput(paymentData.recipientAccount), // FIXED: Changed to payeeAccount
+      payeeAccount: sanitizeInput(paymentData.recipientAccount),
       swiftCode: sanitizeInput(paymentData.swiftCode),
       description: sanitizeInput(paymentData.description || '')
     };
