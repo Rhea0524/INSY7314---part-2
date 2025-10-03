@@ -7,38 +7,31 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in on mount
+    // SECURITY FIX: Only store non-sensitive user data in localStorage
+    // Tokens are now in httpOnly cookies (managed by backend)
     const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
     
-    if (storedUser && storedToken) {
+    if (storedUser) {
       setUser(JSON.parse(storedUser));
-      setToken(storedToken);
     }
     setLoading(false);
-  }, []); // Only run once on mount
+  }, []);
 
-  // Wrap login in useCallback
-  const login = useCallback((userData, authToken) => {
+  // Customer login (uses backend API with httpOnly cookies)
+  const login = useCallback((userData, token) => {
     setUser(userData);
-    setToken(authToken);
+    // SECURITY: Only store user info, NOT the token
+    // Token is in httpOnly cookie (set by server)
     localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('token', authToken);
+    
+    // DEPRECATED: Keep for backward compatibility but token is in cookie
+    localStorage.setItem('token', token);
   }, []);
 
-  // Wrap logout in useCallback
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-  }, []);
-
-  // FIXED: Now accepts email and password (instead of employeeId)
+  // Employee login (uses Firebase Auth)
   const employeeLogin = useCallback(async (email, password) => {
     try {
       console.log('Attempting Firebase Auth with email:', email);
@@ -50,13 +43,12 @@ export const AuthProvider = ({ children }) => {
 
       console.log('Firebase Auth successful, UID:', firebaseUser.uid);
 
-      // Now fetch employee data from Firestore using the authenticated user's UID
+      // Fetch employee data from Firestore
       const employeesRef = collection(db, 'employees');
       const q = query(employeesRef, where('uid', '==', firebaseUser.uid));
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        // User authenticated but no employee record found
         await auth.signOut();
         return {
           success: false,
@@ -64,7 +56,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Get the employee data
       const employeeDoc = querySnapshot.docs[0];
       const employeeData = employeeDoc.data();
 
@@ -77,12 +68,14 @@ export const AuthProvider = ({ children }) => {
         name: employeeData.name,
         role: employeeData.role,
         userType: 'employee',
-        username: employeeData.employeeId // Add this for backend compatibility
+        username: employeeData.employeeId
       };
 
       setUser(employeeUserData);
-      setToken(idToken);
+      
+      // SECURITY: Store user data (non-sensitive)
       localStorage.setItem('user', JSON.stringify(employeeUserData));
+      // SECURITY: Token for employees (Firebase) - needed for API calls
       localStorage.setItem('token', idToken);
 
       console.log('Employee login successful:', employeeUserData);
@@ -94,12 +87,12 @@ export const AuthProvider = ({ children }) => {
 
     } catch (error) {
       console.error('Employee login error:', error);
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
       
       return {
         success: false,
-        message: error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential'
+        message: error.code === 'auth/wrong-password' || 
+                 error.code === 'auth/user-not-found' || 
+                 error.code === 'auth/invalid-credential'
           ? 'Invalid email or password'
           : error.code === 'auth/too-many-requests'
           ? 'Too many failed attempts. Please try again later.'
@@ -108,39 +101,67 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Setup inactivity timer separately
+  // SECURITY: Enhanced logout with httpOnly cookie clearing
+  const logout = useCallback(async () => {
+    try {
+      // Clear httpOnly cookie on server
+      await fetch('http://localhost:5000/api/logout', {
+        method: 'POST',
+        credentials: 'include', // CRITICAL: Send cookies with request
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      // Sign out from Firebase if employee
+      if (user?.userType === 'employee') {
+        await auth.signOut();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+    
+    // Clear local state and storage
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  }, [user]);
+
+  // SECURITY: Inactivity timeout (Session Hijacking protection)
   useEffect(() => {
-    if (!token) return;
+    if (!user) return;
 
     let inactivityTimer;
+    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
         logout();
-        alert('Session expired due to inactivity');
-      }, 60 * 60 * 1000); // 1 hour
+        alert('Session expired due to inactivity. Please log in again.');
+      }, INACTIVITY_TIMEOUT);
     };
 
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keypress', resetTimer);
+    // Track user activity
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
     resetTimer();
 
     return () => {
       clearTimeout(inactivityTimer);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keypress', resetTimer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
     };
-  }, [token, logout]);
+  }, [user, logout]);
 
   const value = useMemo(() => ({
     user,
-    token,
+    token: localStorage.getItem('token'), // For compatibility
     login,
     logout,
     employeeLogin,
-    isAuthenticated: !!token,
+    isAuthenticated: !!user,
     loading
-  }), [user, token, login, logout, employeeLogin, loading]);
+  }), [user, login, logout, employeeLogin, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
