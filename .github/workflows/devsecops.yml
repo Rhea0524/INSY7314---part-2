@@ -35,7 +35,7 @@ jobs:
       with:
         args: --severity-threshold=high
 
- secret-scanning:
+  secret-scanning:
     runs-on: ubuntu-latest
     name: Secret Detection & Credential Scanning
     
@@ -109,7 +109,7 @@ jobs:
       continue-on-error: true
     
     - name: Check code formatting
-      run: npx prettier --check "src/**/*.{js,jsx}"
+      run: npx prettier --check "src/**/*.{js,jsx}" --ignore-unknown
       continue-on-error: true
 
   container-security:
