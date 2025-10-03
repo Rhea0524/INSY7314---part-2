@@ -127,32 +127,6 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
   }, [user]);
 
-  // SECURITY: Inactivity timeout (Session Hijacking protection)
-  useEffect(() => {
-    if (!user) return;
-
-    let inactivityTimer;
-    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        logout();
-        alert('Session expired due to inactivity. Please log in again.');
-      }, INACTIVITY_TIMEOUT);
-    };
-
-    // Track user activity
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    resetTimer();
-
-    return () => {
-      clearTimeout(inactivityTimer);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [user, logout]);
-
   const value = useMemo(() => ({
     user,
     token: localStorage.getItem('token'), // For compatibility
