@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://localhost:5443/api';
 
 // SECURITY: Create axios instance with enhanced security config
 const api = axios.create({
@@ -8,19 +8,24 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // CRITICAL: Enable credentials for httpOnly cookies
   withCredentials: true,
-  // SECURITY: Set timeout to prevent hanging requests (DDoS protection)
-  timeout: 30000, // 30 seconds
+  timeout: 30000,
 });
 
 // SECURITY: Request interceptor with token and error handling
 api.interceptors.request.use(
   (config) => {
+    // CRITICAL FIX: Always get fresh token from localStorage
+    // This ensures we use the latest token (employee or customer)
     const token = localStorage.getItem('token');
+    
     if (token) {
+      console.log('📤 Sending request with token:', token.substring(0, 20) + '...');
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn('⚠️ No token found in localStorage');
     }
+    
     return config;
   },
   (error) => {
@@ -35,18 +40,22 @@ api.interceptors.response.use(
   (error) => {
     // Handle 401 Unauthorized - token expired or invalid
     if (error.response?.status === 401) {
-      console.warn('Authentication failed - clearing session');
+      console.warn('⚠️ Authentication failed - clearing session');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/employee/login') {
         window.location.href = '/login';
       }
     }
     
+    // Handle 403 Forbidden - insufficient permissions
+    if (error.response?.status === 403) {
+      console.error('🚫 Access forbidden:', error.response.data);
+    }
+    
     // Handle 429 Too Many Requests - rate limiting
     if (error.response?.status === 429) {
-      console.error('Rate limit exceeded');
+      console.error('⏱️ Rate limit exceeded');
       return Promise.reject({
         error: 'Too many requests. Please wait and try again.',
         retryAfter: error.response.headers['retry-after']
@@ -58,23 +67,15 @@ api.interceptors.response.use(
 );
 
 // SECURITY: Enhanced input sanitization helper - XSS Protection
-// Multi-pass approach with comprehensive attack vector coverage
 const sanitizeInput = (data) => {
   if (typeof data === 'string') {
-    // PROTECTION: Remove multiple XSS attack vectors
     return data
-      // Remove script tags and content (ReDoS-safe pattern)
-    .replace(/<script\b[^<]{0,500}?<\/script>/gi, '')
-      // Remove event handlers (onclick, onerror, onload, etc.)
+      .replace(/<script\b[^<]{0,500}?<\/script>/gi, '')
       .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
       .replace(/on\w+\s*=\s*[^\s>]*/gi, '')
-      // Remove javascript: protocol
       .replace(/javascript:/gi, '')
-      // Remove data: protocol (can be used for XSS)
       .replace(/data:text\/html/gi, '')
-      // Remove HTML tags
       .replace(/<[^>]*>/g, '')
-      // Remove HTML entities that could decode to scripts
       .replace(/&lt;|&gt;|&quot;|&#x3C;|&#x3E;/gi, '')
       .trim();
   }
@@ -91,7 +92,6 @@ const sanitizeInput = (data) => {
 // Customer APIs
 export const registerCustomer = async (userData) => {
   try {
-    // SECURITY: Sanitize user input before sending
     const sanitizedData = sanitizeInput(userData);
     const response = await api.post('/register', sanitizedData);
     return response.data;
@@ -102,16 +102,15 @@ export const registerCustomer = async (userData) => {
 
 export const loginCustomer = async (credentials) => {
   try {
-    // SECURITY: Sanitize credentials
     const loginData = {
       accountNumber: sanitizeInput(credentials.accountNumber),
-      password: credentials.password // Don't sanitize password (allow special chars)
+      password: credentials.password
     };
     
     const response = await api.post('/login', loginData);
     
-    // SECURITY: Store token and user data (httpOnly cookie set by server)
     if (response.data.token) {
+      console.log('✅ Customer login successful, storing token');
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
@@ -124,17 +123,15 @@ export const loginCustomer = async (credentials) => {
 
 export const submitPayment = async (paymentData) => {
   try {
-    // SECURITY: Validate and sanitize payment data
     const sanitizedData = {
       amount: parseFloat(paymentData.amount),
       currency: sanitizeInput(paymentData.currency),
       provider: 'SWIFT',
-      payeeAccount: sanitizeInput(paymentData.recipientAccount),
+      recipientAccount: sanitizeInput(paymentData.recipientAccount),
       swiftCode: sanitizeInput(paymentData.swiftCode),
       description: sanitizeInput(paymentData.description || '')
     };
 
-    // SECURITY: Validate amount is positive
     if (sanitizedData.amount <= 0 || isNaN(sanitizedData.amount)) {
       throw { error: 'Invalid payment amount' };
     }
@@ -156,24 +153,14 @@ export const getCustomerTransactions = async () => {
 };
 
 // Employee APIs
-export const loginEmployee = async (credentials) => {
-  try {
-    const response = await api.post('/employee/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { error: 'Employee login failed' };
-  }
-};
-
 export const getEmployeeTransactions = async () => {
   try {
+    console.log('🔍 Fetching employee transactions...');
     const response = await api.get('/employee/transactions');
+    console.log('✅ Transactions fetched successfully');
     return response.data;
   } catch (error) {
+    console.error('❌ Failed to fetch transactions:', error.response?.data);
     throw error.response?.data || { error: 'Failed to fetch transactions' };
   }
 };
@@ -181,7 +168,6 @@ export const getEmployeeTransactions = async () => {
 // Transaction verification
 export const verifyTransaction = async (transactionId) => {
   try {
-    // SECURITY: Validate transactionId format
     if (!transactionId || typeof transactionId !== 'string') {
       throw { error: 'Invalid transaction ID' };
     }
@@ -196,7 +182,6 @@ export const verifyTransaction = async (transactionId) => {
 // SWIFT submission
 export const submitToSWIFT = async (transactionId) => {
   try {
-    // SECURITY: Validate transactionId format
     if (!transactionId || typeof transactionId !== 'string') {
       throw { error: 'Invalid transaction ID' };
     }
@@ -211,7 +196,6 @@ export const submitToSWIFT = async (transactionId) => {
 // SECURITY: Enhanced logout that clears httpOnly cookie
 export const logout = async () => {
   try {
-    // Call server logout to clear httpOnly cookie
     await api.post('/logout');
   } catch (error) {
     console.error('Logout API error:', error);
@@ -219,11 +203,8 @@ export const logout = async () => {
     // Always clear local storage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    console.log('✅ Logged out and cleared local storage');
   }
 };
-
-// Attach methods to api object for backward compatibility
-api.verifyTransaction = verifyTransaction;
-api.submitToSWIFT = submitToSWIFT;
 
 export default api;

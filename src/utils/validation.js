@@ -90,7 +90,7 @@ const BLOCKED_PATTERNS = [
   
   // Path Traversal
   /\.\.\//,                 // Directory traversal (Unix)
-  /\.\.\\/, ,               // Directory traversal (Windows)
+  /\.\.\\/,                // Directory traversal (Windows)
   /etc\/passwd/i,           // Unix system files
   /windows\/system32/i,     // Windows system files
   
